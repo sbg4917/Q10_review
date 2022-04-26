@@ -30,9 +30,9 @@ library(lmerTest)
 
 #set working directory
 ```{r}
-setwd("/Users/sarahgoldsmith/Documents/Dartmouth/Q10_review")
+#setwd("/Users/sarahgoldsmith/Documents/Dartmouth/Q10_review")
 
-#setwd("~/Documents/GitHub/Q10_review")
+setwd("~/Documents/GitHub/Q10_review")
 
 ```
 
@@ -269,10 +269,10 @@ print("number of data points with all variables AND %carbon")
 length(which(!is.na(alldata$midDepth) & !is.na(alldata$landCover) & !is.na(alldata$nitrogenPercent) & !is.na(alldata$MAP) & !is.na(alldata$carbonPercent)))
 
 #look for optimal random effects using transformed Q10
-mod <- gls(data=alldata, Q10T ~ 1 + midDepth:landCover + nitrogenPercent:midDepth + MAP:midDepth, na.action = na.omit)
-mod2 <- lmer(data=alldata, Q10T ~ 1 + midDepth:landCover + nitrogenPercent:midDepth + MAP:midDepth + (1|uniqueSite), na.action = na.omit)
-mod3 <- lmer(data=alldata, Q10T ~ 1 + midDepth:landCover + nitrogenPercent:midDepth + MAP:midDepth + (1|citationKey), na.action = na.omit)
-mod4 <- lmer(data=alldata,Q10T ~ 1 + midDepth:landCover + nitrogenPercent:midDepth + MAP:midDepth + (1|citationKey/uniqueSite), na.action = na.omit)
+mod <- gls(data=alldata, Q10T ~ 1 + midDepth*landCover + nitrogenPercent*midDepth + MAP*midDepth, na.action = na.omit)
+mod2 <- lmer(data=alldata, Q10T ~ 1 + midDepth*landCover + nitrogenPercent*midDepth + MAP*midDepth + (1|uniqueSite), na.action = na.omit)
+mod3 <- lmer(data=alldata, Q10T ~ 1 + midDepth*landCover + nitrogenPercent*midDepth + MAP*midDepth + (1|citationKey), na.action = na.omit)
+mod4 <- lmer(data=alldata,Q10T ~ 1 + midDepth*landCover + nitrogenPercent*midDepth + MAP*midDepth + (1|citationKey/uniqueSite), na.action = na.omit)
 #Some predictor variables are on very different scales: consider rescaling (models 2-4)
 
 AICc(mod, mod2, mod3, mod4)
@@ -298,10 +298,99 @@ plot(Rfull ~ alldata$nitrogenPercent) #decrease in variance with N?
 plot(Rfull ~ alldata$MAP)
 par(op)
 
+#Model Selection
+#choose data with only complete cases so can compare as drop variables
+alldata_envN <- alldata %>%
+  filter(complete.cases(landCover,nitrogenPercent, MAP))
+
+mod4 <- lmer(data=alldata_envN,Q10T ~ 1 + midDepth*landCover + nitrogenPercent*midDepth + MAP*midDepth + (1|citationKey/uniqueSite), na.action = na.omit, REML=FALSE)
+
+mod4a <- lmer(data=alldata_envN,Q10T ~ 1 + midDepth*landCover + nitrogenPercent*midDepth + MAP + (1|citationKey/uniqueSite), na.action = na.omit, REML=FALSE)
+AIC(mod4, mod4a)
+anova(mod4a) #highest p is MAP, so take it away for next model
+
+mod4b <- lmer(data=alldata_envN,Q10T ~ 1 + midDepth*landCover + nitrogenPercent*midDepth + (1|citationKey/uniqueSite), na.action = na.omit, REML=FALSE)
+AIC(mod4a, mod4b) #slightly greater AIC
+anova(mod4a, mod4b) #no diff so not needed 
+anova(mod4b)
+
+mod4c <- lmer(data=alldata_envN,Q10T ~ 1 + midDepth+landCover + nitrogenPercent*midDepth + (1|citationKey/uniqueSite), na.action = na.omit, REML=FALSE)
+AIC(mod4b, mod4c) #4c is slightly worse
+anova(mod4b, mod4c) #and there is a sig difference
+
+mod4d <- lmer(data=alldata_envN,Q10T ~ 1 + midDepth*landCover + nitrogenPercent+midDepth + (1|citationKey/uniqueSite), na.action = na.omit, REML=FALSE)
+AIC(mod4b, mod4d) #4d is  worse
+anova(mod4b, mod4c) #and there is a sig difference
+
+#So cannot drop main effects if interactions are significant. Rerun best model with REML
+
+mod_final <- lmer(data=alldata_envN,Q10T ~ 1 + midDepth*landCover + nitrogenPercent*midDepth + (1|citationKey/uniqueSite), na.action = na.omit, REML=TRUE)
+
+anova(mod_final)
+
+#graphical exploration of residuals
+F_Final <- fitted(mod_final)
+R_Final <- residuals(mod_final, type = "pearson", scaled = TRUE) #type="response" 
+#no difference in graphs with pearson vs response
+
+N = !is.na(alldata_envN$Q10)
+Rfull <- NA
+Rfull[N] <- R_Final
+
+op <- par(mfrow = c(2,2), mar = c(5,4,1,1))
+plot(F_Final, R_Final) #variance increases with value of Q10
+hist(Rfull)
+plot(Rfull ~ alldata_envN$midDepth)
+plot(Rfull ~ alldata_envN$nitrogenPercent) #decrease in variance with N?
+plot(Rfull ~ alldata_envN$MAP)
+boxplot(Rfull~alldata_envN$landCover)
+par(op)
+
+
+```
+#Only landCover
+```{r}
+print("number of data points with all variables (environmental model: midDepth, landCover, nitrogen, MAP)")
+length(which(!is.na(alldata$midDepth) & !is.na(alldata$landCover) & !is.na(alldata$nitrogenPercent) & !is.na(alldata$MAP)))
+print("number of data points with land cover")
+length(which(!is.na(alldata$midDepth) & !is.na(alldata$landCover)))
+
+#look for optimal random effects using transformed Q10 
+#should carbon be included as carbon x depth? 
+mod <- gls(data=alldata, Q10T ~ 1 + midDepth*landCover, na.action = na.omit)
+mod2 <- lmer(data=alldata, Q10T ~ 1 + midDepth*landCover + (1|uniqueSite), na.action = na.omit)
+mod3 <- lmer(data=alldata, Q10T ~ 1 + midDepth*landCover + (1|citationKey), na.action = na.omit)
+mod4 <- lmer(data=alldata,Q10T ~ 1 + midDepth*landCover + (1|citationKey/uniqueSite), na.action = na.omit)
+#Some predictor variables are on very different scales: consider rescaling (models 2-4)
+
+AICc(mod, mod2, mod3, mod4)
+#lowest AICc = mod4
+
+summary(mod4)
+anova(mod4)
+
+#graphical exploration of residuals
+F_Final <- fitted(mod4)
+R_Final <- residuals(mod4, type = "pearson", scaled = TRUE) #type="response" 
+#no difference in graphs with pearson vs response
+
+N = !is.na(alldata$Q10)
+Rfull <- NA
+Rfull[N] <- R_Final
+
+op <- par(mfrow = c(2,2), mar = c(5,4,1,1))
+plot(F_Final, R_Final) #variance increases with value of Q10
+hist(Rfull)
+plot(Rfull ~ alldata$midDepth)
+plot(Rfull ~ alldata$nitrogenPercent) #decrease in variance with N?
+plot(Rfull ~ alldata$MAP)
+boxplot(Rfull ~ alldata$landCover)
+par(op)
+
 ```
 
-
 #Environmental Characteristics (with carbon) Model
+Need to change : to * so main effects and interactions included instead of just interactions
 ```{r}
 print("number of data points with all variables (environmental model: midDepth, landCover, nitrogen, MAP)")
 length(which(!is.na(alldata$midDepth) & !is.na(alldata$landCover) & !is.na(alldata$nitrogenPercent) & !is.na(alldata$MAP)))
