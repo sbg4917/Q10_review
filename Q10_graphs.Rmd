@@ -262,7 +262,7 @@ mod4a<-lmer(data=alldata, Q10~1+ tempRange + durationDays + (1|citationKey/uniqu
 mod4b<-lmer(data=alldata, Q10~1+ tempRange + (1|citationKey/uniqueSite), na.action = na.omit, REML=FALSE)
 AIC(mod4a, mod4b)
 anova(mod4a, mod4b)
-
+#gnbbnjk get rid of this later
 # length(which(is.na(alldata$tempRange)))
 # length(which(is.na(alldata$durationDays)))
 
