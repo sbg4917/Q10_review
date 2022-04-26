@@ -22,20 +22,26 @@ library(mapview)
 library(ggcorrplot)
 library(PerformanceAnalytics)
 library(lme4)
+library(nlme)
+library(MuMIn)
+library(lmerTest)
 #library(maps)
 ```
-## R Markdown
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
-
+#set working directory
 ```{r}
 setwd("/Users/sarahgoldsmith/Documents/Dartmouth/Q10_review")
+
+setwd("~/Documents/GitHub/Q10_review")
+
+```
+
+#read in file
+```{r}
 alldata <- read.csv("Q10_alldata_workingfile2.csv")
 ```
 
-# unit conversions #
+#Unit conversions
 ```{r}
 #make sure columns that are supposed to be numeric are actually numeric
 alldata <- alldata %>% 
@@ -79,7 +85,7 @@ alldata$depthCategory <- ifelse(alldata$midDepth <= 10, "0-10", ifelse(alldata$m
 alldata$uniqueSite <- paste(alldata$citationKey, alldata$site)
 alldata$uniqueID <- paste(alldata$site, alldata$midDepth)
 ```
-# information about the data #
+#Information about the data 
 ```{r}
 #number of unique studies
 length(unique(alldata$citationKey))
@@ -103,13 +109,14 @@ length(which(!is.na(alldata$midDepth) & !is.na(alldata$landCover) & !is.na(allda
 #length if we include carbon as well
 length(which(!is.na(alldata$midDepth) & !is.na(alldata$landCover) & !is.na(alldata$nitrogenPercent) & !is.na(alldata$MAP) & !is.na(alldata$carbonPercent)))
 
+```
 
+#Exploratory graphs
+```{r}
 
 #histogram of Q10 values
 ggplot(alldata) + geom_histogram(aes(Q10))
-```
 
-```{r}
 # depth plots
 ggplot(alldata) + geom_histogram(aes(midDepth))
 
@@ -159,8 +166,8 @@ ggplot(alldata) + geom_point(aes(x = percentClay, y = Q10))
 
 ```{r} 
 # incubation temperature 
-plots + geom_point(aes(x = maxTemp, y = Q10))
-plots + geom_point(aes(x = minTemp, y = Q10))
+ggplot(data = alldata) + geom_point(aes(x = maxTemp, y = Q10))
+ggplot(data = alldata) + geom_point(aes(x = minTemp, y = Q10))
 
 ggplot(data = alldata) + geom_point(aes(x = tempRange, y = Q10))
 
@@ -169,7 +176,9 @@ ggplot(data = alldata) + geom_point(aes(x = tempRange, y = Q10))
 
 ```{r}
 #make facet graphs
-ggsave(ggplot(data = alldata, aes(Q10, midDepth, color = citationKey)) + geom_point(show.legend = FALSE) + facet_wrap(~landCover), filename = "Q10 by landcover.png")
+ggplot(data = alldata, aes(Q10, midDepth, color = citationKey)) + geom_point(show.legend = FALSE) + facet_wrap(~landCover)
+#ggsave(filename = "Q10 by landcover.png")
+
 ggplot(data = alldata, aes(Q10, midDepth, color = citationKey)) + geom_point(show.legend = FALSE) + facet_wrap(~soilOrder)
 
 #correlation plots
@@ -190,12 +199,72 @@ ggplot(data = alldata, aes(Q10, cn, color = citationKey)) + geom_point(show.lege
 ggplot(data = alldata, aes(Q10, nitrogenPercent, color = citationKey)) + geom_point(show.legend = FALSE) + facet_wrap(~depthCategory)
 ggplot(data = alldata, aes(Q10, microbialBiomass2, color = citationKey)) + geom_point(show.legend = FALSE) + facet_wrap(~depthCategory)
 
-
 ```
-# create models #
+
+#Build Models
+#Experiment characteristics model
 ```{r}
-exp.data <- as.data.frame(alldata[,c("Q10", "tempRange", "durationDays", "citationKey", "uniqueSite")])
-exp.model <- lmer(data = exp.data, formula = Q10 ~ 1 + tempRange + durationDays + (1|citationKey|uniqueSite), na.action = na.omit)
-summary(exp.model)
+#look for optimal random effects
+mod<-gls(data=alldata, Q10~ 1+ tempRange + durationDays, na.action = na.omit)
+mod2<-lmer(data=alldata, Q10~1+ tempRange + durationDays + (1|uniqueSite), na.action = na.omit)
+mod3<-lmer(data=alldata, Q10~1+ tempRange + durationDays + (1|citationKey), na.action = na.omit)
+mod4<-lmer(data=alldata, Q10~1+ tempRange + durationDays + (1|citationKey/uniqueSite), na.action = na.omit)
+AICc(mod, mod2, mod3, mod4)
+
+summary(mod4)
+anova(mod4)
+
+#graphical exploration of residuals
+F_Final <- fitted(mod4)
+R_Final <- residuals(mod4, type = "pearson", scaled = TRUE) #type="response" 
+#no difference in graphs with pearson vs response
+
+N = !is.na(alldata$Q10)
+Rfull <- NA
+Rfull[N] <- R_Final
+
+op <- par(mfrow = c(2,2), mar = c(5,4,1,1))
+plot(F_Final, R_Final) #variance increases with value of Q10
+hist(Rfull)
+plot(Rfull ~ alldata$tempRange)
+plot(Rfull ~ alldata$durationDays)
+par(op)
+
+#transform response variable
+alldata$Q10T<-log(alldata$Q10)
+
+#look for optimal random effects
+mod<-gls(data=alldata, Q10T~ 1+ tempRange + durationDays, na.action = na.omit)
+mod2<-lmer(data=alldata, Q10T~1+ tempRange + durationDays + (1|uniqueSite), na.action = na.omit)
+mod3<-lmer(data=alldata, Q10T~1+ tempRange + durationDays + (1|citationKey), na.action = na.omit)
+mod4<-lmer(data=alldata, Q10T~1+ tempRange + durationDays + (1|citationKey/uniqueSite), na.action = na.omit)
+AIC(mod, mod2, mod3, mod4)
+
+summary(mod4)
+anova(mod4)
+
+F_Final <- fitted(mod4)
+R_Final <- residuals(mod4, type = "pearson", scaled = TRUE) #type="response" 
+
+N = !is.na(alldata$Q10)
+Rfull <- NA
+Rfull[N] <- R_Final
+
+op <- par(mfrow = c(2,2), mar = c(5,4,1,1))
+plot(F_Final, R_Final) #variance increases with value of Q10
+hist(Rfull)
+plot(Rfull ~ alldata$tempRange)
+plot(Rfull ~ alldata$durationDays)
+par(op)
+
+
+mod4a<-lmer(data=alldata, Q10~1+ tempRange + durationDays + (1|citationKey/uniqueSite), na.action = na.omit,   REML=FALSE)
+mod4b<-lmer(data=alldata, Q10~1+ tempRange + (1|citationKey/uniqueSite), na.action = na.omit, REML=FALSE)
+AIC(mod4a, mod4b)
+anova(mod4a, mod4b)
+
+# length(which(is.na(alldata$tempRange)))
+# length(which(is.na(alldata$durationDays)))
+
 ```
 
