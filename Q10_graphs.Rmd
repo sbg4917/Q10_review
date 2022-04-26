@@ -309,7 +309,7 @@ print("number of data points with all variables AND %carbon")
 length(which(!is.na(alldata$midDepth) & !is.na(alldata$landCover) & !is.na(alldata$nitrogenPercent) & !is.na(alldata$MAP) & !is.na(alldata$carbonPercent)))
 
 #look for optimal random effects using transformed Q10 
-#carbon x depth? 
+#should carbon be included as carbon x depth? 
 mod <- gls(data=alldata, Q10T ~ 1 + midDepth:landCover + carbonPercentAll:midDepth + nitrogenPercent:midDepth + MAP:midDepth, na.action = na.omit)
 mod2 <- lmer(data=alldata, Q10T ~ 1 + midDepth:landCover + carbonPercentAll:midDepth + nitrogenPercent:midDepth + MAP:midDepth + (1|uniqueSite), na.action = na.omit)
 mod3 <- lmer(data=alldata, Q10T ~ 1 + midDepth:landCover + carbonPercentAll:midDepth + nitrogenPercent:midDepth + MAP:midDepth + (1|citationKey), na.action = na.omit)
