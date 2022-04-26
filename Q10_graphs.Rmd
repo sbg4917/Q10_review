@@ -1,0 +1,201 @@
+---
+title: "Q10_graphs"
+author: "Sarah Goldsmith"
+date: "4/8/2022"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+````{r message = FALSE}
+library(plyr)
+library(ggplot2)
+library(dplyr)
+library(ggmap)
+library(stringr)
+library(sf)
+library(mapview)
+library(ggcorrplot)
+library(PerformanceAnalytics)
+library(lme4)
+#library(maps)
+```
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r}
+setwd("/Users/sarahgoldsmith/Documents/Dartmouth/Q10_review")
+alldata <- read.csv("Q10_alldata_workingfile2.csv")
+```
+
+# unit conversions #
+```{r}
+#make sure columns that are supposed to be numeric are actually numeric
+alldata <- alldata %>% 
+  mutate_at(vars(MAP, MAT, latitude1, longitude1, activeLayer, topDepth, bottomDepth, SOC, nitrogenMean, cn, bulkDensityMean,  replicates, pH, redox, percentSand, percentSilt, percentClay, microbialBiomass, Q10, minTemp, maxTemp, duration), ~as.numeric(as.character(.))) 
+
+# unit conversions
+unique(alldata$carbonUnits)
+#convert units to percent
+alldata$carbonPercent <- as.numeric(ifelse(alldata$carbonUnits == "percent", alldata$carbonMean, ifelse(
+  alldata$carbonUnits == "mg g-1" | alldata$carbonUnits == "g kg-1", alldata$carbonMean /10, ""
+)))
+# "Aaltonen2019JEM" reports in "kg m-2", but no BD available
+
+unique(alldata$SOCUnits)
+alldata$SOCpercent <- as.numeric(ifelse(alldata$SOCUnits == "percent", alldata$SOC, ifelse(alldata$SOCUnits == "SOC (g kg-1)" | alldata$SOCUnits == "g kg -1", alldata$SOC /10, ifelse(alldata$SOCUnits == "g 100 g-1 soil", alldata$SOC *100, ""))))
+
+#merge SOC and %C
+alldata$carbonPercentAll <- ifelse(!is.na(alldata$SOCpercent), alldata$SOCpercent, alldata$carbonPercent)
+
+unique(alldata$nitrogenUnits)
+alldata$nitrogenPercent <- as.numeric (ifelse(alldata$nitrogenUnits == "percent", alldata$nitrogenMean, ifelse(
+  alldata$nitrogenUnits == "mg/gSoil" | alldata$nitrogenUnits =="g kg-1", alldata$nitrogenMean /10, ifelse( alldata$nitrogenUnits == "g 100g-1 soil", alldata$nitrogenMean *100, ""
+))))
+
+unique(alldata$microbialBiomassUnits)
+#convert to mg/kg?
+alldata$microbialBiomass2 <- as.numeric (ifelse(alldata$microbialBiomassUnits == "mg kg-1", alldata$microbialBiomass, ifelse(alldata$microbialBiomassUnits == "ug C g soil-1" | alldata$microbialBiomassUnits == "microg/gSoil", alldata$microbialBiomass /1000, ifelse(alldata$microbialBiomassUnits == "mg g-1", alldata$microbialBiomass *1000, ""
+))))
+
+
+#calculate duration in... days??
+alldata$durationDays <- as.numeric(ifelse(alldata$durationUnits == "days", alldata$duration, ifelse(alldata$durationUnits == "hr", alldata$duration /24, ifelse(alldata$durationUnits == "year", alldata$duration *365, ifelse(alldata$durationUnits == "weeks", alldata$duration /7, "")))))
+
+
+#calculate temperature range
+alldata$tempRange <- as.numeric(alldata$maxTemp - alldata$minTemp)
+
+#categorize midDepth into categories? 0-10, 10-30, 30+ ? 
+alldata$depthCategory <- ifelse(alldata$midDepth <= 10, "0-10", ifelse(alldata$midDepth >10 & alldata$midDepth <= 30, "10-30", ifelse(alldata$midDepth >30 & alldata$midDepth <= 50, "30-50", "50-end")))
+
+alldata$uniqueSite <- paste(alldata$citationKey, alldata$site)
+alldata$uniqueID <- paste(alldata$site, alldata$midDepth)
+```
+# information about the data #
+```{r}
+#number of unique studies
+length(unique(alldata$citationKey))
+# number of papers from/not from review papers
+print("number of papers")
+length(unique(alldata[which(is.na(alldata$reviewPaperKey)),1]))
+length(unique(alldata[which(alldata$reviewPaperKey == "Li2020AdvSci"),1]))
+length(unique(alldata[which(alldata$reviewPaperKey == "Ren2020GBC"),1]))
+
+# number of data points from/not from review papers
+print("number of data points")
+length(alldata[which(is.na(alldata$reviewPaperKey)),1])
+length(alldata[which(alldata$reviewPaperKey == "Li2020AdvSci"),1])
+length(alldata[which(alldata$reviewPaperKey == "Ren2020GBC"),1])
+
+# number of data points that have all variables of interest for the models #
+# experimental model: tempRange, durationDays  (should have this for all points)#
+
+# environmental model: midDepth, landCover, nitrogen, MAP #
+length(which(!is.na(alldata$midDepth) & !is.na(alldata$landCover) & !is.na(alldata$nitrogenPercent) & !is.na(alldata$MAP)))
+#length if we include carbon as well
+length(which(!is.na(alldata$midDepth) & !is.na(alldata$landCover) & !is.na(alldata$nitrogenPercent) & !is.na(alldata$MAP) & !is.na(alldata$carbonPercent)))
+
+
+
+#histogram of Q10 values
+ggplot(alldata) + geom_histogram(aes(Q10))
+```
+
+```{r}
+# depth plots
+ggplot(alldata) + geom_histogram(aes(midDepth))
+
+ggplot(alldata) + geom_point(aes(y = midDepth, x = Q10))
+```
+
+```{r}
+# duration plots#
+ggplot(alldata) + geom_histogram(aes(durationDays))
+
+ggplot(alldata) + geom_point(aes(x = durationDays, y = Q10)) 
+```
+
+```{r}
+#plot Q10 vs % carbon 
+
+ggplot() + geom_point(data = alldata, aes(x = carbonPercentAll, y = Q10))
+ggplot() + geom_point(data = alldata, aes(x = SOCpercent, y = Q10))
+
+ggplot(alldata) + geom_point(aes(x = cn, y = Q10))
+
+```
+
+```{r}
+###### map study locations #####
+worldmap <- map_data(map = "world")
+ggplot() + geom_point(data = alldata, aes(x = longitude1, y = latitude1), color = "black", size = 1) + geom_polygon(data = worldmap, aes(x=long, y = lat, group = group)) + geom_point(data = alldata, aes(x = longitude1, y = latitude1), color = "yellow", size = 0.5)
+
+#number of countries represented 
+unique(alldata$country)
+length(unique(alldata$country))
+
+ggplot(alldata) + geom_bar(aes(country)) #this might not be the most useful. But most of the data is from China
+
+```
+
+```{r}
+#climate variables (temperature, elevation)
+ggplot(alldata) + geom_point(aes(x = MAP, y = Q10))
+ggplot(alldata) + geom_point(aes(x = MAT, y = Q10))
+
+#sand/silt/clay
+ggplot(alldata) + geom_point(aes(x = percentSand, y = Q10))
+ggplot(alldata) + geom_point(aes(x = percentSilt, y = Q10))
+ggplot(alldata) + geom_point(aes(x = percentClay, y = Q10))
+```
+
+```{r} 
+# incubation temperature 
+plots + geom_point(aes(x = maxTemp, y = Q10))
+plots + geom_point(aes(x = minTemp, y = Q10))
+
+ggplot(data = alldata) + geom_point(aes(x = tempRange, y = Q10))
+
+```
+
+
+```{r}
+#make facet graphs
+ggsave(ggplot(data = alldata, aes(Q10, midDepth, color = citationKey)) + geom_point(show.legend = FALSE) + facet_wrap(~landCover), filename = "Q10 by landcover.png")
+ggplot(data = alldata, aes(Q10, midDepth, color = citationKey)) + geom_point(show.legend = FALSE) + facet_wrap(~soilOrder)
+
+#correlation plots
+alldata.climate <- alldata %>%
+  select(MAT, MAP, midDepth, pH, cn, Q10, carbonPercentAll, nitrogenPercent, microbialBiomass2)
+chart.Correlation(alldata.climate, pch = 19)
+
+alldata.incubation <- alldata %>%
+  select(Q10,minTemp, maxTemp, tempRange, durationDays)
+chart.Correlation(alldata.incubation)
+
+```
+
+```{r}
+#facet graphs by depth category
+ggplot(data = alldata, aes(Q10, carbonPercentAll, color = citationKey)) + geom_point(show.legend = FALSE) + facet_wrap(~depthCategory)
+ggplot(data = alldata, aes(Q10, cn, color = citationKey)) + geom_point(show.legend = FALSE) + facet_wrap(~depthCategory)
+ggplot(data = alldata, aes(Q10, nitrogenPercent, color = citationKey)) + geom_point(show.legend = FALSE) + facet_wrap(~depthCategory)
+ggplot(data = alldata, aes(Q10, microbialBiomass2, color = citationKey)) + geom_point(show.legend = FALSE) + facet_wrap(~depthCategory)
+
+
+```
+# create models #
+```{r}
+exp.data <- as.data.frame(alldata[,c("Q10", "tempRange", "durationDays", "citationKey", "uniqueSite")])
+exp.model <- lmer(data = exp.data, formula = Q10 ~ 1 + tempRange + durationDays + (1|citationKey|uniqueSite), na.action = na.omit)
+summary(exp.model)
+```
+
