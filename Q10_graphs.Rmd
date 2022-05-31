@@ -79,7 +79,7 @@ alldata$durationDays <- as.numeric(ifelse(alldata$durationUnits == "days", allda
 #calculate temperature range
 alldata$tempRange <- as.numeric(alldata$maxTemp - alldata$minTemp)
 
-#categorize midDepth into categories? 0-10, 10-30, 30+ ? 
+#categorize midDepth into categories? 0-10, 10-30, 30-50, 50-end 
 alldata$depthCategory <- ifelse(alldata$midDepth <= 10, "0-10", ifelse(alldata$midDepth >10 & alldata$midDepth <= 30, "10-30", ifelse(alldata$midDepth >30 & alldata$midDepth <= 50, "30-50", "50-end")))
 
 alldata$uniqueSite <- paste(alldata$citationKey, alldata$site)
@@ -105,7 +105,7 @@ length(alldata[which(alldata$reviewPaperKey == "Ren2020GBC"),1])
 ```
 
 #Exploratory graphs
-```{r}
+```{r warning=FALSE}
 
 #histogram of Q10 values
 ggplot(alldata) + geom_histogram(aes(Q10))
@@ -116,14 +116,14 @@ ggplot(alldata) + geom_histogram(aes(midDepth))
 ggplot(alldata) + geom_point(aes(y = midDepth, x = Q10))
 ```
 
-```{r}
-# duration plots#
+```{r warning=FALSE}
+#duration plots
 ggplot(alldata) + geom_histogram(aes(durationDays))
 
 ggplot(alldata) + geom_point(aes(x = durationDays, y = Q10)) 
 ```
 
-```{r}
+```{r warning=FALSE}
 #plot Q10 vs % carbon 
 
 ggplot() + geom_point(data = alldata, aes(x = carbonPercentAll, y = Q10))
@@ -146,7 +146,7 @@ ggplot(alldata) + geom_bar(aes(country)) #this might not be the most useful. But
 
 ```
 
-```{r}
+```{r warning=FALSE}
 #climate variables (temperature, elevation)
 ggplot(alldata) + geom_point(aes(x = MAP, y = Q10))
 ggplot(alldata) + geom_point(aes(x = MAT, y = Q10))
@@ -157,17 +157,16 @@ ggplot(alldata) + geom_point(aes(x = percentSilt, y = Q10))
 ggplot(alldata) + geom_point(aes(x = percentClay, y = Q10))
 ```
 
-```{r} 
+```{r warning=FALSE} 
 # incubation temperature 
 ggplot(data = alldata) + geom_point(aes(x = maxTemp, y = Q10))
 ggplot(data = alldata) + geom_point(aes(x = minTemp, y = Q10))
-
 ggplot(data = alldata) + geom_point(aes(x = tempRange, y = Q10))
 
 ```
 
 
-```{r}
+```{r warning=FALSE}
 #make facet graphs
 ggplot(data = alldata, aes(Q10, midDepth, color = citationKey)) + geom_point(show.legend = FALSE) + facet_wrap(~landCover)
 #ggsave(filename = "Q10 by landcover.png")
@@ -185,8 +184,23 @@ chart.Correlation(alldata.incubation)
 
 ```
 
-```{r}
+```{r warning=FALSE}
 #facet graphs by depth category
+
+ggplot(data = alldata, aes(tempRange, Q10)) + 
+  geom_point() + 
+  geom_smooth() + 
+  facet_wrap(~depthCategory)
+
+ggplot(data = alldata, aes(minTemp, Q10)) + 
+  geom_point() + 
+  geom_smooth() + 
+  facet_wrap(~depthCategory)
+
+ggplot(data = alldata, aes(durationDays, Q10)) + 
+  geom_point() + 
+  facet_wrap(~depthCategory)
+
 ggplot(data = alldata, aes(Q10, carbonPercentAll, color = citationKey)) + geom_point(show.legend = FALSE) + facet_wrap(~depthCategory)
 ggplot(data = alldata, aes(Q10, cn, color = citationKey)) + geom_point(show.legend = FALSE) + facet_wrap(~depthCategory)
 ggplot(data = alldata, aes(Q10, nitrogenPercent, color = citationKey)) + geom_point(show.legend = FALSE) + facet_wrap(~depthCategory)
@@ -198,10 +212,10 @@ ggplot(data = alldata, aes(Q10, microbialBiomass2, color = citationKey)) + geom_
 #Experiment characteristics model
 ```{r}
 #look for optimal random effects
-mod<-gls(data=alldata, Q10~ 1+ tempRange + durationDays, na.action = na.omit)
-mod2<-lmer(data=alldata, Q10~1+ tempRange + durationDays + (1|uniqueSite), na.action = na.omit)
-mod3<-lmer(data=alldata, Q10~1+ tempRange + durationDays + (1|citationKey), na.action = na.omit)
-mod4<-lmer(data=alldata, Q10~1+ tempRange + durationDays + (1|citationKey/uniqueSite), na.action = na.omit)
+mod<-gls(data=alldata, Q10~ 1+ minTemp + durationDays, na.action = na.omit)
+mod2<-lmer(data=alldata, Q10~1+ minTemp + durationDays + (1|uniqueSite), na.action = na.omit)
+mod3<-lmer(data=alldata, Q10~1+ minTemp + durationDays + (1|citationKey), na.action = na.omit)
+mod4<-lmer(data=alldata, Q10~1+ minTemp + durationDays + (1|citationKey/uniqueSite), na.action = na.omit)
 AICc(mod, mod2, mod3, mod4)
 
 summary(mod4)
@@ -210,27 +224,28 @@ anova(mod4)
 #graphical exploration of residuals
 F_Final <- fitted(mod4)
 R_Final <- residuals(mod4, type = "pearson", scaled = TRUE) #type="response" 
-#no difference in graphs with pearson vs response
 
-N = !is.na(alldata$Q10)
+N = !is.na(alldata$durationDays)
 Rfull <- NA
 Rfull[N] <- R_Final
 
 op <- par(mfrow = c(2,2), mar = c(5,4,1,1))
 plot(F_Final, R_Final) #variance increases with value of Q10
 hist(Rfull)
-plot(Rfull ~ alldata$tempRange)
+plot(Rfull ~ alldata$minTemp)
 plot(Rfull ~ alldata$durationDays)
+plot(Rfull ~ alldata$minTemp)
+plot(Rfull ~ alldata$maxTemp)
 par(op)
 
 #transform response variable
 alldata$Q10T<-log(alldata$Q10)
 
 #look for optimal random effects
-mod<-gls(data=alldata, Q10T~ 1+ tempRange + durationDays, na.action = na.omit)
-mod2<-lmer(data=alldata, Q10T~1+ tempRange + durationDays + (1|uniqueSite), na.action = na.omit)
-mod3<-lmer(data=alldata, Q10T~1+ tempRange + durationDays + (1|citationKey), na.action = na.omit)
-mod4<-lmer(data=alldata, Q10T~1+ tempRange + durationDays + (1|citationKey/uniqueSite), na.action = na.omit)
+mod<-gls(data=alldata, Q10T~ 1+ minTemp*midDepth + durationDays*midDepth, na.action = na.omit)
+mod2<-lmer(data=alldata, Q10T~1+ minTemp*midDepth + durationDays*midDepth + (1|uniqueSite), na.action = na.omit)
+mod3<-lmer(data=alldata, Q10T~1+ minTemp*midDepth + durationDays*midDepth + (1|citationKey), na.action = na.omit)
+mod4<-lmer(data=alldata, Q10T~1+ minTemp*midDepth + durationDays*midDepth + (1|citationKey/uniqueSite), na.action = na.omit)
 AIC(mod, mod2, mod3, mod4)
 
 summary(mod4)
@@ -239,27 +254,45 @@ anova(mod4)
 F_Final <- fitted(mod4)
 R_Final <- residuals(mod4, type = "pearson", scaled = TRUE) #type="response" 
 
-N = !is.na(alldata$Q10)
+
+N = !is.na(alldata$durationDays)
 Rfull <- NA
 Rfull[N] <- R_Final
 
 op <- par(mfrow = c(2,2), mar = c(5,4,1,1))
 plot(F_Final, R_Final) #variance increases with value of Q10
 hist(Rfull)
-plot(Rfull ~ alldata$tempRange)
+plot(Rfull ~ alldata$minTemp)
 plot(Rfull ~ alldata$durationDays)
+plot(Rfull ~ alldata$minTemp)
+plot(Rfull ~ alldata$maxTemp)
 par(op)
 
 
-mod4a<-lmer(data=alldata, Q10~1+ tempRange + durationDays + (1|citationKey/uniqueSite), na.action = na.omit,   REML=FALSE)
-mod4b<-lmer(data=alldata, Q10~1+ tempRange + (1|citationKey/uniqueSite), na.action = na.omit, REML=FALSE)
-AIC(mod4a, mod4b)
-anova(mod4a, mod4b)
+```
+#View the trends
+```{r}
+library(emmeans)
 
-# length(which(is.na(alldata$tempRange)))
-# length(which(is.na(alldata$durationDays)))
+emmip(mod4, Q10T ~ durationDays|midDepth, cov.reduce=range)
+
+emtrends(mod4, ~1, var="durationDays")
+
+mylist <- list(midDepth=c(5,15,30,50, 100))
+
+emmip(mod4,~midDepth*durationDays,at=mylist, CIs=TRUE)
+
+dura <- mean(alldata$durationDays, na.rm=T) + sd(alldata$durationDays, na.rm=T)
+dur <- mean(alldata$durationDays, na.rm=T)
+durb <- mean(alldata$durationDays, na.rm=T) - sd(alldata$durationDays, na.rm=T)
+
+alldata[which(is.na(alldata$Q10)),]
+
+
 
 ```
+
+
 
 #Environmental Characteristics (no carbon) Model
 ```{r}
