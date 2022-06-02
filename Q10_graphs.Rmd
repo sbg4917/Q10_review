@@ -82,8 +82,9 @@ alldata$tempRange <- as.numeric(alldata$maxTemp - alldata$minTemp)
 #categorize midDepth into categories? 0-10, 10-30, 30-50, 50-end 
 alldata$depthCategory <- ifelse(alldata$midDepth <= 10, "0-10", ifelse(alldata$midDepth >10 & alldata$midDepth <= 30, "10-30", ifelse(alldata$midDepth >30 & alldata$midDepth <= 50, "30-50", "50-end")))
 
-alldata$uniqueSite <- paste(alldata$citationKey, alldata$site)
-alldata$uniqueID <- paste(alldata$site, alldata$midDepth)
+alldata$uniqueSite <- as.factor(paste(alldata$citationKey, alldata$site))
+alldata$uniqueID <- as.factor(paste(alldata$site, alldata$midDepth))
+alldata$citationKey <- as.factor(alldata$citationKey)
 ```
 #Information about the data 
 ```{r}
@@ -104,35 +105,7 @@ length(alldata[which(alldata$reviewPaperKey == "Ren2020GBC"),1])
 
 ```
 
-#Exploratory graphs
-```{r warning=FALSE}
-
-#histogram of Q10 values
-ggplot(alldata) + geom_histogram(aes(Q10))
-
-# depth plots
-ggplot(alldata) + geom_histogram(aes(midDepth))
-
-ggplot(alldata) + geom_point(aes(y = midDepth, x = Q10))
-```
-
-```{r warning=FALSE}
-#duration plots
-ggplot(alldata) + geom_histogram(aes(durationDays))
-
-ggplot(alldata) + geom_point(aes(x = durationDays, y = Q10)) 
-```
-
-```{r warning=FALSE}
-#plot Q10 vs % carbon 
-
-ggplot() + geom_point(data = alldata, aes(x = carbonPercentAll, y = Q10))
-ggplot() + geom_point(data = alldata, aes(x = SOCpercent, y = Q10))
-
-ggplot(alldata) + geom_point(aes(x = cn, y = Q10))
-
-```
-
+#Geography of studies
 ```{r}
 ###### map study locations #####
 worldmap <- map_data(map = "world")
@@ -146,7 +119,30 @@ ggplot(alldata) + geom_bar(aes(country)) #this might not be the most useful. But
 
 ```
 
+#Exploratory graphs
+##Depth
 ```{r warning=FALSE}
+
+#histogram of Q10 values
+ggplot(alldata) + geom_histogram(aes(Q10))
+
+# depth plots
+ggplot(alldata) + geom_histogram(aes(midDepth))
+
+ggplot(alldata) + geom_point(aes(y = midDepth, x = Q10))
+
+```
+
+##Environmental conditions
+```{r warning=FALSE}
+#plot Q10 vs % carbon and nitrogen
+ggplot() + geom_point(data = alldata, aes(x = carbonPercentAll, y = Q10))
+ggplot() + geom_point(data = alldata, aes(x = SOCpercent, y = Q10))
+ggplot() + geom_point(data = alldata, aes(x = nitrogenPercent, y = Q10))
+ggplot() + geom_point(data = alldata, aes(x = pH, y = Q10))
+
+ggplot(alldata) + geom_point(aes(x = cn, y = Q10))
+
 #climate variables (temperature, elevation)
 ggplot(alldata) + geom_point(aes(x = MAP, y = Q10))
 ggplot(alldata) + geom_point(aes(x = MAT, y = Q10))
@@ -155,36 +151,40 @@ ggplot(alldata) + geom_point(aes(x = MAT, y = Q10))
 ggplot(alldata) + geom_point(aes(x = percentSand, y = Q10))
 ggplot(alldata) + geom_point(aes(x = percentSilt, y = Q10))
 ggplot(alldata) + geom_point(aes(x = percentClay, y = Q10))
-```
 
-```{r warning=FALSE} 
-# incubation temperature 
-ggplot(data = alldata) + geom_point(aes(x = maxTemp, y = Q10))
-ggplot(data = alldata) + geom_point(aes(x = minTemp, y = Q10))
-ggplot(data = alldata) + geom_point(aes(x = tempRange, y = Q10))
-
-```
-
-
-```{r warning=FALSE}
 #make facet graphs
 ggplot(data = alldata, aes(Q10, midDepth, color = citationKey)) + geom_point(show.legend = FALSE) + facet_wrap(~landCover)
 #ggsave(filename = "Q10 by landcover.png")
 
 ggplot(data = alldata, aes(Q10, midDepth, color = citationKey)) + geom_point(show.legend = FALSE) + facet_wrap(~soilOrder)
 
-#correlation plots
-alldata.climate <- alldata %>%
-  select(MAT, MAP, midDepth, pH, cn, Q10, carbonPercentAll, nitrogenPercent, microbialBiomass2)
-chart.Correlation(alldata.climate, pch = 19)
-
-alldata.incubation <- alldata %>%
-  select(Q10,minTemp, maxTemp, tempRange, durationDays)
-chart.Correlation(alldata.incubation)
+ggplot(data = alldata, aes(Q10, carbonPercentAll, color = citationKey)) + geom_point(show.legend = FALSE) + facet_wrap(~depthCategory)
+ggplot(data = alldata, aes(Q10, cn, color = citationKey)) + geom_point(show.legend = FALSE) + facet_wrap(~depthCategory)
+ggplot(data = alldata, aes(Q10, nitrogenPercent, color = citationKey)) + geom_point(show.legend = FALSE) + facet_wrap(~depthCategory)
+ggplot(data = alldata, aes(Q10, microbialBiomass2, color = citationKey)) + geom_point(show.legend = FALSE) + facet_wrap(~depthCategory)
+ggplot(data = alldata, aes(Q10, pH, color = citationKey)) + geom_point(show.legend = FALSE) + facet_wrap(~depthCategory)
+ggplot(data = alldata, aes(Q10, MAT, color = citationKey)) + geom_point(show.legend = FALSE) + facet_wrap(~depthCategory)
+ggplot(data = alldata, aes(Q10, MAP, color = citationKey)) + geom_point(show.legend = FALSE) + facet_wrap(~depthCategory)
 
 ```
 
+##Experimental conditions
 ```{r warning=FALSE}
+#duration plots
+ggplot(alldata) + geom_histogram(aes(durationDays))
+
+ggplot(alldata) + geom_point(aes(x = durationDays, y = Q10)) 
+
+#minTemp
+ggplot(alldata) + geom_histogram(aes(minTemp))
+
+ggplot(alldata) + geom_point(aes(x = minTemp, y = Q10)) 
+
+# incubation temperature 
+ggplot(data = alldata) + geom_point(aes(x = maxTemp, y = Q10))
+ggplot(data = alldata) + geom_point(aes(x = minTemp, y = Q10))
+ggplot(data = alldata) + geom_point(aes(x = tempRange, y = Q10))
+
 #facet graphs by depth category
 
 ggplot(data = alldata, aes(tempRange, Q10)) + 
@@ -201,16 +201,28 @@ ggplot(data = alldata, aes(durationDays, Q10)) +
   geom_point() + 
   facet_wrap(~depthCategory)
 
-ggplot(data = alldata, aes(Q10, carbonPercentAll, color = citationKey)) + geom_point(show.legend = FALSE) + facet_wrap(~depthCategory)
-ggplot(data = alldata, aes(Q10, cn, color = citationKey)) + geom_point(show.legend = FALSE) + facet_wrap(~depthCategory)
-ggplot(data = alldata, aes(Q10, nitrogenPercent, color = citationKey)) + geom_point(show.legend = FALSE) + facet_wrap(~depthCategory)
-ggplot(data = alldata, aes(Q10, microbialBiomass2, color = citationKey)) + geom_point(show.legend = FALSE) + facet_wrap(~depthCategory)
+```
+
+##Correlation
+```{r warning=FALSE}
+#correlation plots
+alldata.climate <- alldata %>%
+  select(Q10,midDepth, MAT, MAP, pH, cn, carbonPercentAll, nitrogenPercent, microbialBiomass2)
+chart.Correlation(alldata.climate, pch = 19)
+
+alldata.incubation <- alldata %>%
+  select(Q10,midDepth, minTemp, maxTemp, tempRange, durationDays)
+chart.Correlation(alldata.incubation)
 
 ```
 
 #Build Models
-#Experiment characteristics model
+#Experiment characteristics 
+##Model
 ```{r}
+
+length(which(!is.na(alldata$midDepth) & !is.na(alldata$minTemp)& !is.na(alldata$durationDays)))  #953
+
 #look for optimal random effects
 mod<-gls(data=alldata, Q10~ 1+ minTemp + durationDays, na.action = na.omit)
 mod2<-lmer(data=alldata, Q10~1+ minTemp + durationDays + (1|uniqueSite), na.action = na.omit)
@@ -265,48 +277,56 @@ hist(Rfull)
 plot(Rfull ~ alldata$minTemp)
 plot(Rfull ~ alldata$durationDays)
 plot(Rfull ~ alldata$minTemp)
-plot(Rfull ~ alldata$maxTemp)
+plot(Rfull ~ alldata$tempRange)
 par(op)
 
 
 ```
-#View the trends
+
+##View the trends of the interaction
 ```{r}
 library(emmeans)
 
-emmip(mod4, Q10T ~ durationDays|midDepth, cov.reduce=range)
+#depth
+mylist <- list(midDepth=c(5,15,30,50,100))
+emmip(mod4,~midDepth,at=mylist, CIs=TRUE)
 
-emtrends(mod4, ~1, var="durationDays")
-
-mylist <- list(midDepth=c(5,15,30,50, 100))
-
+#duration by depth
+mylist <- list(midDepth=c(5,15,30,50,100))
 emmip(mod4,~midDepth*durationDays,at=mylist, CIs=TRUE)
 
-dura <- mean(alldata$durationDays, na.rm=T) + sd(alldata$durationDays, na.rm=T)
-dur <- mean(alldata$durationDays, na.rm=T)
-durb <- mean(alldata$durationDays, na.rm=T) - sd(alldata$durationDays, na.rm=T)
+dura <- round(mean(alldata$durationDays, na.rm=T) + sd(alldata$durationDays, na.rm=T))
+dur <- round(mean(alldata$durationDays, na.rm=T))
+durb <- 2
 
-alldata[which(is.na(alldata$Q10)),]
+mylist <- list(midDepth=c(5,15,30,50,100),durationDays=c(dura,dur,durb)) 
+emmip(mod4,midDepth~durationDays,at=mylist)
 
+#min temperature by depth
+mylist <- list(midDepth=c(5,15,30,50,100))
+emmip(mod4,~midDepth*minTemp,at=mylist, CIs=TRUE)
 
+mta <- round(mean(alldata$minTemp, na.rm=T) + sd(alldata$minTemp, na.rm=T))
+mtr <- round(mean(alldata$minTemp, na.rm=T))
+mtb <- round(mean(alldata$minTemp, na.rm=T) - sd(alldata$minTemp, na.rm=T))
+
+mylist <- list(midDepth=c(5,15,30,50,100),minTemp=c(mta,mtr,mtb)) 
+emmip(mod4,midDepth~minTemp,at=mylist)
 
 ```
 
-
-
-#Environmental Characteristics (no carbon) Model
+#Environmental Characteristics
+##Model
 ```{r}
-print("number of data points with all variables (environmental model: midDepth, landCover, nitrogen, MAP)")
-length(which(!is.na(alldata$midDepth) & !is.na(alldata$landCover) & !is.na(alldata$nitrogenPercent) & !is.na(alldata$MAP)))
-print("number of data points with all variables AND %carbon")
-length(which(!is.na(alldata$midDepth) & !is.na(alldata$landCover) & !is.na(alldata$nitrogenPercent) & !is.na(alldata$MAP) & !is.na(alldata$carbonPercent)))
+length(which(!is.na(alldata$midDepth) & !is.na(alldata$landCover)))  #954
+length(which(!is.na(alldata$midDepth) & !is.na(alldata$landCover)& !is.na(alldata$MAP)& !is.na(alldata$MAT))) #835
 
 #look for optimal random effects using transformed Q10
-mod <- gls(data=alldata, Q10T ~ 1 + midDepth*landCover + nitrogenPercent*midDepth + MAP*midDepth, na.action = na.omit)
-mod2 <- lmer(data=alldata, Q10T ~ 1 + midDepth*landCover + nitrogenPercent*midDepth + MAP*midDepth + (1|uniqueSite), na.action = na.omit)
-mod3 <- lmer(data=alldata, Q10T ~ 1 + midDepth*landCover + nitrogenPercent*midDepth + MAP*midDepth + (1|citationKey), na.action = na.omit)
-mod4 <- lmer(data=alldata,Q10T ~ 1 + midDepth*landCover + nitrogenPercent*midDepth + MAP*midDepth + (1|citationKey/uniqueSite), na.action = na.omit)
-#Some predictor variables are on very different scales: consider rescaling (models 2-4)
+mod <- gls(data=alldata, Q10T ~ 1 + midDepth*landCover + MAP*midDepth + MAT*midDepth , na.action = na.omit)
+mod2 <- lmer(data=alldata, Q10T ~ 1 + midDepth*landCover + MAP*midDepth + MAT*midDepth  + (1|uniqueSite), na.action = na.omit)
+mod3 <- lmer(data=alldata, Q10T ~ 1 +midDepth*landCover + MAP*midDepth + MAT*midDepth  + (1|citationKey), na.action = na.omit)
+mod4 <- lmer(data=alldata,Q10T ~ 1 + midDepth*landCover + MAP*midDepth + MAT*midDepth  + (1|citationKey/uniqueSite), na.action = na.omit)
+#Some predictor variables are on very different scales: consider rescaling
 
 AICc(mod, mod2, mod3, mod4)
 #lowest AICc = mod4
@@ -319,7 +339,7 @@ F_Final <- fitted(mod4)
 R_Final <- residuals(mod4, type = "pearson", scaled = TRUE) #type="response" 
 #no difference in graphs with pearson vs response
 
-N = !is.na(alldata$Q10)
+N = !is.na(alldata$Q10T)
 Rfull <- NA
 Rfull[N] <- R_Final
 
@@ -327,119 +347,131 @@ op <- par(mfrow = c(2,2), mar = c(5,4,1,1))
 plot(F_Final, R_Final) #variance increases with value of Q10
 hist(Rfull)
 plot(Rfull ~ alldata$midDepth)
-plot(Rfull ~ alldata$nitrogenPercent) #decrease in variance with N?
-plot(Rfull ~ alldata$MAP)
-par(op)
-
-#Model Selection
-#choose data with only complete cases so can compare as drop variables
-alldata_envN <- alldata %>%
-  filter(complete.cases(landCover,nitrogenPercent, MAP))
-
-mod4 <- lmer(data=alldata_envN,Q10T ~ 1 + midDepth*landCover + nitrogenPercent*midDepth + MAP*midDepth + (1|citationKey/uniqueSite), na.action = na.omit, REML=FALSE)
-
-mod4a <- lmer(data=alldata_envN,Q10T ~ 1 + midDepth*landCover + nitrogenPercent*midDepth + MAP + (1|citationKey/uniqueSite), na.action = na.omit, REML=FALSE)
-AIC(mod4, mod4a)
-anova(mod4a) #highest p is MAP, so take it away for next model
-
-mod4b <- lmer(data=alldata_envN,Q10T ~ 1 + midDepth*landCover + nitrogenPercent*midDepth + (1|citationKey/uniqueSite), na.action = na.omit, REML=FALSE)
-AIC(mod4a, mod4b) #slightly greater AIC
-anova(mod4a, mod4b) #no diff so not needed 
-anova(mod4b)
-
-mod4c <- lmer(data=alldata_envN,Q10T ~ 1 + midDepth+landCover + nitrogenPercent*midDepth + (1|citationKey/uniqueSite), na.action = na.omit, REML=FALSE)
-AIC(mod4b, mod4c) #4c is slightly worse
-anova(mod4b, mod4c) #and there is a sig difference
-
-mod4d <- lmer(data=alldata_envN,Q10T ~ 1 + midDepth*landCover + nitrogenPercent+midDepth + (1|citationKey/uniqueSite), na.action = na.omit, REML=FALSE)
-AIC(mod4b, mod4d) #4d is  worse
-anova(mod4b, mod4c) #and there is a sig difference
-
-#So cannot drop main effects if interactions are significant. Rerun best model with REML
-
-mod_final <- lmer(data=alldata_envN,Q10T ~ 1 + midDepth*landCover + nitrogenPercent*midDepth + (1|citationKey/uniqueSite), na.action = na.omit, REML=TRUE)
-
-anova(mod_final)
-
-#graphical exploration of residuals
-F_Final <- fitted(mod_final)
-R_Final <- residuals(mod_final, type = "pearson", scaled = TRUE) #type="response" 
-#no difference in graphs with pearson vs response
-
-N = !is.na(alldata_envN$Q10)
-Rfull <- NA
-Rfull[N] <- R_Final
-
-op <- par(mfrow = c(2,2), mar = c(5,4,1,1))
-plot(F_Final, R_Final) #variance increases with value of Q10
-hist(Rfull)
-plot(Rfull ~ alldata_envN$midDepth)
-plot(Rfull ~ alldata_envN$nitrogenPercent) #decrease in variance with N?
-plot(Rfull ~ alldata_envN$MAP)
-boxplot(Rfull~alldata_envN$landCover)
-par(op)
-
-
-```
-#Only landCover
-```{r}
-print("number of data points with all variables (environmental model: midDepth, landCover, nitrogen, MAP)")
-length(which(!is.na(alldata$midDepth) & !is.na(alldata$landCover) & !is.na(alldata$nitrogenPercent) & !is.na(alldata$MAP)))
-print("number of data points with land cover")
-length(which(!is.na(alldata$midDepth) & !is.na(alldata$landCover)))
-
-#look for optimal random effects using transformed Q10 
-#should carbon be included as carbon x depth? 
-mod <- gls(data=alldata, Q10T ~ 1 + midDepth*landCover, na.action = na.omit)
-mod2 <- lmer(data=alldata, Q10T ~ 1 + midDepth*landCover + (1|uniqueSite), na.action = na.omit)
-mod3 <- lmer(data=alldata, Q10T ~ 1 + midDepth*landCover + (1|citationKey), na.action = na.omit)
-mod4 <- lmer(data=alldata,Q10T ~ 1 + midDepth*landCover + (1|citationKey/uniqueSite), na.action = na.omit)
-#Some predictor variables are on very different scales: consider rescaling (models 2-4)
-
-AICc(mod, mod2, mod3, mod4)
-#lowest AICc = mod4
-
-summary(mod4)
-anova(mod4)
-
-#graphical exploration of residuals
-F_Final <- fitted(mod4)
-R_Final <- residuals(mod4, type = "pearson", scaled = TRUE) #type="response" 
-#no difference in graphs with pearson vs response
-
-N = !is.na(alldata$Q10)
-Rfull <- NA
-Rfull[N] <- R_Final
-
-op <- par(mfrow = c(2,2), mar = c(5,4,1,1))
-plot(F_Final, R_Final) #variance increases with value of Q10
-hist(Rfull)
-plot(Rfull ~ alldata$midDepth)
-plot(Rfull ~ alldata$nitrogenPercent) #decrease in variance with N?
-plot(Rfull ~ alldata$MAP)
 boxplot(Rfull ~ alldata$landCover)
+plot(Rfull ~ alldata$MAP)
+plot(Rfull ~ alldata$MAT)
+plot(Rfull ~ alldata$pH)
+plot(Rfull ~ alldata$nitrogenPercent) #decrease in variance with N?
 par(op)
+
 
 ```
 
-#Environmental Characteristics (with carbon) Model
-Need to change : to * so main effects and interactions included instead of just interactions
+##View the significant trends 
 ```{r}
-print("number of data points with all variables (environmental model: midDepth, landCover, nitrogen, MAP)")
-length(which(!is.na(alldata$midDepth) & !is.na(alldata$landCover) & !is.na(alldata$nitrogenPercent) & !is.na(alldata$MAP)))
-print("number of data points with all variables AND %carbon")
-length(which(!is.na(alldata$midDepth) & !is.na(alldata$landCover) & !is.na(alldata$nitrogenPercent) & !is.na(alldata$MAP) & !is.na(alldata$carbonPercent)))
 
-#look for optimal random effects using transformed Q10 
-#should carbon be included as carbon x depth? 
-mod <- gls(data=alldata, Q10T ~ 1 + midDepth:landCover + carbonPercentAll:midDepth + nitrogenPercent:midDepth + MAP:midDepth, na.action = na.omit)
-mod2 <- lmer(data=alldata, Q10T ~ 1 + midDepth:landCover + carbonPercentAll:midDepth + nitrogenPercent:midDepth + MAP:midDepth + (1|uniqueSite), na.action = na.omit)
-mod3 <- lmer(data=alldata, Q10T ~ 1 + midDepth:landCover + carbonPercentAll:midDepth + nitrogenPercent:midDepth + MAP:midDepth + (1|citationKey), na.action = na.omit)
-mod4 <- lmer(data=alldata,Q10T ~ 1 + midDepth:landCover + carbonPercentAll:midDepth + nitrogenPercent:midDepth + MAP:midDepth + (1|citationKey/uniqueSite), na.action = na.omit)
-#Some predictor variables are on very different scales: consider rescaling (models 2-4)
+#depth
+mylist <- list(midDepth=c(5,15,30,50,100))
+emmip(mod4,~midDepth,at=mylist, CIs=TRUE)
+
+#LandCover by depth
+mylist <- list(midDepth=c(5,15,30,50,100))
+emmip(mod4,~midDepth|landCover,at=mylist, CIs=TRUE)
+
+emtrends(mod4, pairwise~ landCover, var = "midDepth")
+
+#MAT partial residual plot
+
+library(ggeffects)
+pr<-ggpredict(mod4, "MAT [all]")
+plot(pr, add.data = TRUE)
+plot(pr, residuals = TRUE, residuals.line = TRUE) #is absolutely a linear effect
+
+pr<-ggpredict(mod4, c("midDepth", "landCover"))
+plot(pr, add.data = TRUE, grid=TRUE)
+plot(pr, residuals = TRUE, residuals.line = TRUE, grid=TRUE) 
+
+```
+
+#Soil characteristics
+##Model
+```{r}
+print("number of data points with all variables (environmental model: midDepth, landCover, nitrogen, MAP, MAT, pH)")
+length(which(!is.na(alldata$midDepth) & !is.na(alldata$nitrogenPercent) & !is.na(alldata$carbonPercentAll)& !is.na(alldata$pH)&!is.na(alldata$microbialBiomass2))) #224, 103 with microbial biomass
+
+#look for optimal random effects using transformed Q10
+mod <- gls(data=alldata, Q10T ~ 1 + midDepth*nitrogenPercent + carbonPercentAll*midDepth + pH*midDepth , na.action = na.omit)
+mod2 <- lmer(data=alldata, Q10T ~ 1 + midDepth*nitrogenPercent + carbonPercentAll*midDepth + pH*midDepth  + (1|uniqueSite), na.action = na.omit)
+mod3 <- lmer(data=alldata, Q10T ~ 1 +midDepth*nitrogenPercent + carbonPercentAll*midDepth + pH*midDepth  + (1|citationKey), na.action = na.omit)
+mod4 <- lmer(data=alldata,Q10T ~ 1 + midDepth*nitrogenPercent + carbonPercentAll*midDepth + pH*midDepth  + (1|citationKey/uniqueSite), na.action = na.omit)
+#Some predictor variables are on very different scales: consider rescaling
 
 AICc(mod, mod2, mod3, mod4)
-#lowest AICc = mod4
+#lowest AICc = mod3, 4 is overfit
+
+summary(mod3)
+anova(mod3)
+
+#graphical exploration of residuals
+F_Final <- fitted(mod3)
+R_Final <- residuals(mod3, type = "pearson", scaled = TRUE) #type="response" 
+#no difference in graphs with pearson vs response
+
+N = !is.na(alldata$Q10T)
+Rfull <- NA
+Rfull[N] <- R_Final
+
+op <- par(mfrow = c(2,2), mar = c(5,4,1,1))
+plot(F_Final, R_Final) #variance increases with value of Q10
+hist(Rfull)
+plot(Rfull ~ alldata$midDepth)
+plot(Rfull ~ alldata$nitrogenPercent) #decrease in variance with N?
+plot(Rfull ~ alldata$carbonPercentAll) #decrease in variance with C?
+plot(Rfull ~ alldata$pH)
+boxplot(Rfull ~ alldata$landCover)
+plot(Rfull ~ alldata$MAP)
+plot(Rfull ~ alldata$MAT)
+par(op)
+
+
+```
+
+##View the significant trends 
+```{r}
+
+#depth
+mylist <- list(midDepth=c(5,15,30,50,100))
+emmip(mod3,~midDepth,at=mylist, CIs=TRUE)
+
+#nitrogen by depth
+mylist <- list(nitrogenPercent=c(Na,N,Nb))
+emmip(mod3,~nitrogenPercent, at=mylist, CIs=TRUE)
+
+Na <- (mean(alldata$nitrogenPercent, na.rm=T) + sd(alldata$nitrogenPercent, na.rm=T))
+N <- (mean(alldata$nitrogenPercent, na.rm=T))
+Nb <- 0.05
+
+mylist <- list(midDepth=c(5,15,30,50,100),nitrogenPercent=c(Na,N,Nb)) 
+emmip(mod3,midDepth~nitrogenPercent,at=mylist)
+
+#pH by depth
+Na <- round(mean(alldata$pH, na.rm=T) + sd(alldata$pH, na.rm=T))
+N <- round(mean(alldata$pH, na.rm=T))
+Nb <- round(mean(alldata$pH, na.rm=T) - sd(alldata$pH, na.rm=T))
+
+mylist <- list(midDepth=c(5,15,30,50,100),pH=c(Na,N,Nb)) 
+emmip(mod3,midDepth~pH,at=mylist)
+
+```
+
+
+
+
+#Soil characteristics
+##Model
+```{r}
+print("number of data points with all variables (soil model: C, N, pH)")
+length(which(!is.na(alldata$midDepth) & !is.na(alldata$cn) & !is.na(alldata$carbonPercentAll)& !is.na(alldata$pH))) #674
+
+#look for optimal random effects using transformed Q10
+mod <- gls(data=alldata, Q10T ~ 1 + midDepth*cn + carbonPercentAll*midDepth + pH*midDepth , na.action = na.omit)
+mod2 <- lmer(data=alldata, Q10T ~ 1 + midDepth*cn + carbonPercentAll*midDepth + pH*midDepth  + (1|uniqueSite), na.action = na.omit)
+mod3 <- lmer(data=alldata, Q10T ~ 1 +midDepth*cn + carbonPercentAll*midDepth + pH*midDepth  + (1|citationKey), na.action = na.omit)
+mod4 <- lmer(data=alldata,Q10T ~ 1 + midDepth*cn + carbonPercentAll*midDepth + pH*midDepth  + (1|citationKey/uniqueSite), na.action = na.omit)
+#Some predictor variables are on very different scales: consider rescaling
+
+AICc(mod, mod2, mod3, mod4)
+#lowest AICc = mod3, 4 is overfit
 
 summary(mod4)
 anova(mod4)
@@ -449,7 +481,7 @@ F_Final <- fitted(mod4)
 R_Final <- residuals(mod4, type = "pearson", scaled = TRUE) #type="response" 
 #no difference in graphs with pearson vs response
 
-N = !is.na(alldata$Q10)
+N = !is.na(alldata$Q10T)
 Rfull <- NA
 Rfull[N] <- R_Final
 
@@ -457,9 +489,36 @@ op <- par(mfrow = c(2,2), mar = c(5,4,1,1))
 plot(F_Final, R_Final) #variance increases with value of Q10
 hist(Rfull)
 plot(Rfull ~ alldata$midDepth)
-plot(Rfull ~ alldata$nitrogenPercent) #decrease in variance with N?
+plot(Rfull ~ alldata$nitrogenPercent) 
+plot(Rfull ~ alldata$carbonPercentAll) #decrease in variance with C
+plot(Rfull ~ alldata$cn) #decrease in variance with cn
+plot(Rfull ~ alldata$pH)
+boxplot(Rfull ~ alldata$landCover)
 plot(Rfull ~ alldata$MAP)
+plot(Rfull ~ alldata$MAT)
 par(op)
+
+
+```
+
+##View the significant trends 
+```{r}
+
+#depth
+mylist <- list(midDepth=c(5,15,30,50,100))
+emmip(mod3,~midDepth,at=mylist, CIs=TRUE)
+
+#carbon by depth
+mylist <- list(cn=c(5, 15, 30, 50))
+emmip(mod4,~cn,at=mylist, CIs=TRUE)
+
+#pH by depth
+pHa <- round(mean(alldata$pH, na.rm=T) + sd(alldata$pH, na.rm=T))
+pH <- round(mean(alldata$pH, na.rm=T))
+pHb <- round(mean(alldata$pH, na.rm=T) - sd(alldata$pH, na.rm=T))
+
+mylist <- list(midDepth=c(5,15,30,50,100),pH=c(pHa,pH,pHb)) 
+emmip(mod3,midDepth~pH,at=mylist)
 
 ```
 
