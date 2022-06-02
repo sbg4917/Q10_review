@@ -385,80 +385,7 @@ plot(pr, residuals = TRUE, residuals.line = TRUE, grid=TRUE)
 
 #Soil characteristics
 ##Model
-```{r}
-print("number of data points with all variables (environmental model: midDepth, landCover, nitrogen, MAP, MAT, pH)")
-length(which(!is.na(alldata$midDepth) & !is.na(alldata$nitrogenPercent) & !is.na(alldata$carbonPercentAll)& !is.na(alldata$pH)&!is.na(alldata$microbialBiomass2))) #224, 103 with microbial biomass
-
-#look for optimal random effects using transformed Q10
-mod <- gls(data=alldata, Q10T ~ 1 + midDepth*nitrogenPercent + carbonPercentAll*midDepth + pH*midDepth , na.action = na.omit)
-mod2 <- lmer(data=alldata, Q10T ~ 1 + midDepth*nitrogenPercent + carbonPercentAll*midDepth + pH*midDepth  + (1|uniqueSite), na.action = na.omit)
-mod3 <- lmer(data=alldata, Q10T ~ 1 +midDepth*nitrogenPercent + carbonPercentAll*midDepth + pH*midDepth  + (1|citationKey), na.action = na.omit)
-mod4 <- lmer(data=alldata,Q10T ~ 1 + midDepth*nitrogenPercent + carbonPercentAll*midDepth + pH*midDepth  + (1|citationKey/uniqueSite), na.action = na.omit)
-#Some predictor variables are on very different scales: consider rescaling
-
-AICc(mod, mod2, mod3, mod4)
-#lowest AICc = mod3, 4 is overfit
-
-summary(mod3)
-anova(mod3)
-
-#graphical exploration of residuals
-F_Final <- fitted(mod3)
-R_Final <- residuals(mod3, type = "pearson", scaled = TRUE) #type="response" 
-#no difference in graphs with pearson vs response
-
-N = !is.na(alldata$Q10T)
-Rfull <- NA
-Rfull[N] <- R_Final
-
-op <- par(mfrow = c(2,2), mar = c(5,4,1,1))
-plot(F_Final, R_Final) #variance increases with value of Q10
-hist(Rfull)
-plot(Rfull ~ alldata$midDepth)
-plot(Rfull ~ alldata$nitrogenPercent) #decrease in variance with N?
-plot(Rfull ~ alldata$carbonPercentAll) #decrease in variance with C?
-plot(Rfull ~ alldata$pH)
-boxplot(Rfull ~ alldata$landCover)
-plot(Rfull ~ alldata$MAP)
-plot(Rfull ~ alldata$MAT)
-par(op)
-
-
-```
-
-##View the significant trends 
-```{r}
-
-#depth
-mylist <- list(midDepth=c(5,15,30,50,100))
-emmip(mod3,~midDepth,at=mylist, CIs=TRUE)
-
-#nitrogen by depth
-mylist <- list(nitrogenPercent=c(Na,N,Nb))
-emmip(mod3,~nitrogenPercent, at=mylist, CIs=TRUE)
-
-Na <- (mean(alldata$nitrogenPercent, na.rm=T) + sd(alldata$nitrogenPercent, na.rm=T))
-N <- (mean(alldata$nitrogenPercent, na.rm=T))
-Nb <- 0.05
-
-mylist <- list(midDepth=c(5,15,30,50,100),nitrogenPercent=c(Na,N,Nb)) 
-emmip(mod3,midDepth~nitrogenPercent,at=mylist)
-
-#pH by depth
-Na <- round(mean(alldata$pH, na.rm=T) + sd(alldata$pH, na.rm=T))
-N <- round(mean(alldata$pH, na.rm=T))
-Nb <- round(mean(alldata$pH, na.rm=T) - sd(alldata$pH, na.rm=T))
-
-mylist <- list(midDepth=c(5,15,30,50,100),pH=c(Na,N,Nb)) 
-emmip(mod3,midDepth~pH,at=mylist)
-
-```
-
-
-
-
-#Soil characteristics
-##Model
+Note that I chose C:N here instead of N as it 
 ```{r}
 print("number of data points with all variables (soil model: C, N, pH)")
 length(which(!is.na(alldata$midDepth) & !is.na(alldata$cn) & !is.na(alldata$carbonPercentAll)& !is.na(alldata$pH))) #674
@@ -506,9 +433,9 @@ par(op)
 
 #depth
 mylist <- list(midDepth=c(5,15,30,50,100))
-emmip(mod3,~midDepth,at=mylist, CIs=TRUE)
+emmip(mod4,~midDepth,at=mylist, CIs=TRUE)
 
-#carbon by depth
+#cn by depth
 mylist <- list(cn=c(5, 15, 30, 50))
 emmip(mod4,~cn,at=mylist, CIs=TRUE)
 
