@@ -59,14 +59,14 @@ alldata$carbonPercent <- as.numeric(ifelse(alldata$carbonUnits == "percent", all
 # "Aaltonen2019JEM" reports in "kg m-2", but no BD available
 
 unique(alldata$SOCUnits)
-alldata$SOCpercent <- as.numeric(ifelse(alldata$SOCUnits == "percent", alldata$SOC, ifelse(alldata$SOCUnits == "SOC (g kg-1)" | alldata$SOCUnits == "g kg -1", alldata$SOC /10, ifelse(alldata$SOCUnits == "g 100 g-1 soil", alldata$SOC *100, ""))))
+alldata$SOCpercent <- as.numeric(ifelse(alldata$SOCUnits == "percent", alldata$SOC, ifelse(alldata$SOCUnits == "SOC (g kg-1)" | alldata$SOCUnits == "g kg -1", alldata$SOC /10, ifelse(alldata$SOCUnits == "g 100 g-1 soil", alldata$SOC, ""))))
 
 #merge SOC and %C
 alldata$carbonPercentAll <- ifelse(!is.na(alldata$SOCpercent), alldata$SOCpercent, alldata$carbonPercent)
 
 unique(alldata$nitrogenUnits)
 alldata$nitrogenPercent <- as.numeric (ifelse(alldata$nitrogenUnits == "percent", alldata$nitrogenMean, ifelse(
-  alldata$nitrogenUnits == "mg/gSoil" | alldata$nitrogenUnits =="g kg-1", alldata$nitrogenMean /10, ifelse( alldata$nitrogenUnits == "g 100g-1 soil", alldata$nitrogenMean *100, ""
+  alldata$nitrogenUnits == "mg/gSoil" | alldata$nitrogenUnits =="g kg-1", alldata$nitrogenMean /10, ifelse( alldata$nitrogenUnits == "g 100g-1 soil", alldata$nitrogenMean, ""
 ))))
 
 unique(alldata$microbialBiomassUnits)
@@ -76,8 +76,8 @@ alldata$microbialBiomass2 <- as.numeric (ifelse(alldata$microbialBiomassUnits ==
 
 
 #calculate duration in... days??
-alldata$durationDays <- as.numeric(ifelse(alldata$durationUnits == "days", alldata$duration, ifelse(alldata$durationUnits == "hr", alldata$duration /24, ifelse(alldata$durationUnits == "year", alldata$duration *365, ifelse(alldata$durationUnits == "weeks", alldata$duration /7, "")))))
-
+alldata$durationDays <- as.numeric(ifelse(alldata$durationUnits == "days", alldata$duration, ifelse(alldata$durationUnits == "hr", alldata$duration /24, ifelse(alldata$durationUnits == "year", alldata$duration *365, ifelse(alldata$durationUnits == "weeks", alldata$duration /7, ifelse(alldata$durationUnits == "months", alldata$duration * 30, ""))))))
+#used 30 days/month for conversion
 
 #calculate temperature range
 alldata$tempRange <- as.numeric(alldata$maxTemp - alldata$minTemp)
