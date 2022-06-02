@@ -25,6 +25,9 @@ library(lme4)
 library(nlme)
 library(MuMIn)
 library(lmerTest)
+library(tidyr)
+library(emmeans)
+library(ggeffects)
 #library(maps)
 ```
 
@@ -322,21 +325,21 @@ length(which(!is.na(alldata$midDepth) & !is.na(alldata$landCover)))  #954
 length(which(!is.na(alldata$midDepth) & !is.na(alldata$landCover)& !is.na(alldata$MAP)& !is.na(alldata$MAT))) #835
 
 #look for optimal random effects using transformed Q10
-mod <- gls(data=alldata, Q10T ~ 1 + midDepth*landCover + MAP*midDepth + MAT*midDepth , na.action = na.omit)
-mod2 <- lmer(data=alldata, Q10T ~ 1 + midDepth*landCover + MAP*midDepth + MAT*midDepth  + (1|uniqueSite), na.action = na.omit)
-mod3 <- lmer(data=alldata, Q10T ~ 1 +midDepth*landCover + MAP*midDepth + MAT*midDepth  + (1|citationKey), na.action = na.omit)
-mod4 <- lmer(data=alldata,Q10T ~ 1 + midDepth*landCover + MAP*midDepth + MAT*midDepth  + (1|citationKey/uniqueSite), na.action = na.omit)
+moden <- gls(data=alldata, Q10T ~ 1 + midDepth*landCover + MAP*midDepth + MAT*midDepth , na.action = na.omit)
+mod2en <- lmer(data=alldata, Q10T ~ 1 + midDepth*landCover + MAP*midDepth + MAT*midDepth  + (1|uniqueSite), na.action = na.omit)
+mod3en <- lmer(data=alldata, Q10T ~ 1 +midDepth*landCover + MAP*midDepth + MAT*midDepth  + (1|citationKey), na.action = na.omit)
+mod4en <- lmer(data=alldata,Q10T ~ 1 + midDepth*landCover + MAP*midDepth + MAT*midDepth  + (1|citationKey/uniqueSite), na.action = na.omit)
 #Some predictor variables are on very different scales: consider rescaling
 
-AICc(mod, mod2, mod3, mod4)
+AICc(moden, mod2en, mod3en, mod4en)
 #lowest AICc = mod4
 
-summary(mod4)
-anova(mod4)
+summary(mod4en)
+anova(mod4en)
 
 #graphical exploration of residuals
-F_Final <- fitted(mod4)
-R_Final <- residuals(mod4, type = "pearson", scaled = TRUE) #type="response" 
+F_Final <- fitted(mod4en)
+R_Final <- residuals(mod4en, type = "pearson", scaled = TRUE) #type="response" 
 #no difference in graphs with pearson vs response
 
 N = !is.na(alldata$Q10T)
@@ -362,22 +365,22 @@ par(op)
 
 #depth
 mylist <- list(midDepth=c(5,15,30,50,100))
-emmip(mod4,~midDepth,at=mylist, CIs=TRUE)
+emmip(mod4en,~midDepth,at=mylist, CIs=TRUE)
 
 #LandCover by depth
 mylist <- list(midDepth=c(5,15,30,50,100))
-emmip(mod4,~midDepth|landCover,at=mylist, CIs=TRUE)
+emmip(mod4en,~midDepth|landCover,at=mylist, CIs=TRUE)
 
-emtrends(mod4, pairwise~ landCover, var = "midDepth")
+emtrends(mod4en, pairwise~ landCover, var = "midDepth")
 
 #MAT partial residual plot
 
 library(ggeffects)
-pr<-ggpredict(mod4, "MAT [all]")
+pr<-ggpredict(mod4en, "MAT [all]")
 plot(pr, add.data = TRUE)
 plot(pr, residuals = TRUE, residuals.line = TRUE) #is absolutely a linear effect
 
-pr<-ggpredict(mod4, c("midDepth", "landCover"))
+pr<-ggpredict(mod4en, c("midDepth", "landCover"))
 plot(pr, add.data = TRUE, grid=TRUE)
 plot(pr, residuals = TRUE, residuals.line = TRUE, grid=TRUE) 
 
@@ -448,4 +451,64 @@ mylist <- list(midDepth=c(5,15,30,50,100),pH=c(pHa,pH,pHb))
 emmip(mod3,midDepth~pH,at=mylist)
 
 ```
+#Figures
+Supplementary figure 5: Mean annual temperature versus Δ14C. Two versions one with all fractions and one parsed by fraction. 
+  
+```{r,eval=FALSE}
+#Create own theme for figures
+own_theme <- theme_bw(base_size = 11) +
+  theme(rect = element_blank(),
+        axis.ticks = element_line(color = "black"),
+        axis.text = element_text(color = "black"),
+        axis.line = element_line(color = "black"),
+        panel.grid.minor = element_blank())
 
+#By landCover
+pred_Q10_midDepth <- ggpredict(mod4en, terms = c("midDepth [all]", "landCover"), ci.lvl = 0.95)
+
+pred_Q10_midDepth$landCover <- pred_Q10_midDepth$group
+pred_Q10_midDepth <- pred_Q10_midDepth %>% 
+  mutate(landCover = factor(landCover,
+                               levels = c("Forested",
+                                          "Rangeland/Grassland",
+                                          "Cultivated",
+                                          "Tundra",
+                                          "Peatland",
+                                          "Wetland"),
+                               ordered = TRUE))
+
+alldata_4pred <- alldata %>% 
+  drop_na(c(Q10T, landCover)) %>% 
+  mutate(landCover = factor(landCover,
+                               levels = c("Forested",
+                                          "Rangeland/Grassland",
+                                          "Cultivated",
+                                          "Tundra",
+                                          "Peatland",
+                                          "Wetland"),
+                               ordered = TRUE))
+
+#graph with predicted lines on the model showing marginal effect of slope with 
+#continuous variables held at their means (0) 
+
+alldata_4pred %>%
+ggplot() +
+  geom_point(aes(x = midDepth, y = Q10), 
+             size = 1.5, alpha = 0.4) +
+  geom_ribbon(pred_Q10_midDepth, mapping = aes(x, y=exp(predicted), ymin=exp(conf.low), ymax=exp(conf.high)), alpha=0.3) +
+  geom_line(pred_Q10_midDepth, mapping = aes(x, exp(predicted), color = landCover), 
+            lwd = 1.5) +
+  facet_wrap(~landCover) +
+  own_theme +    
+  theme(legend.position = "none") +
+  ylab(expression(paste("Q "[10]))) +
+  xlab("Depth (cm)") +
+  scale_color_brewer(palette = "BrBG", type="div", direction=6)+
+  coord_cartesian(
+  ylim = c(0, 12),
+  xlim=c(0, 150),
+  expand = TRUE)
+
+ggsave("Q10_depthXlandCover.jpeg", width=6, height=3)
+
+```
