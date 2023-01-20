@@ -1,7 +1,7 @@
 ---
 title: "Q10_graphs"
-author: "Sarah Goldsmith"
-date: "4/8/2022"
+author: "Sarah Goldsmith, Caitlin Hicks Pries"
+date: "`r format(Sys.time(), '%m/%d/%Y')`"
 output:
   pdf_document: default
   html_document: default
@@ -388,7 +388,7 @@ plot(pr, residuals = TRUE, residuals.line = TRUE, grid=TRUE)
 
 #Soil characteristics
 ##Model
-Note that I chose C:N here instead of N as it 
+Note that I chose C:N here instead of N
 ```{r}
 print("number of data points with all variables (soil model: C, N, pH)")
 length(which(!is.na(alldata$midDepth) & !is.na(alldata$cn) & !is.na(alldata$carbonPercentAll)& !is.na(alldata$pH))) #674
@@ -452,7 +452,6 @@ emmip(mod3,midDepth~pH,at=mylist)
 
 ```
 #Figures
-Supplementary figure 5: Mean annual temperature versus Δ14C. Two versions one with all fractions and one parsed by fraction. 
   
 ```{r,eval=FALSE}
 #Create own theme for figures
@@ -500,15 +499,16 @@ ggplot() +
             lwd = 1.5) +
   facet_wrap(~landCover) +
   own_theme +    
-  theme(legend.position = "none") +
+  theme(legend.position = "none",
+        panel.spacing = unit(.5, "cm", data = NULL)) +
   ylab(expression(paste("Q "[10]))) +
   xlab("Depth (cm)") +
   scale_color_brewer(palette = "BrBG", type="div", direction=6)+
-  coord_cartesian(
-  ylim = c(0, 12),
-  xlim=c(0, 150),
-  expand = TRUE)
+  coord_flip()+
+  scale_x_reverse(lim=c(150,0))+
+  scale_y_continuous(lim=c(0,11.5))
+  
 
-ggsave("Q10_depthXlandCover.jpeg", width=6, height=3)
+ggsave("Q10_depthXlandCover.jpeg", width=6, height=5.5)
 
 ```
